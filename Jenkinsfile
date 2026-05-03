@@ -42,33 +42,6 @@ pipeline {
 
     environment {
         SONARQUBE_SERVER = 'sonarqube-server'
-
-        SPRING_PROFILES_ACTIVE = 'local'
-        LOCAL_PORT = '8080'
-        DB_HOST = '127.0.0.1'
-        DB_PORT = '3306'
-        DB_NAME = 'biddinggo'
-        DB_USERNAME = 'biddinggo'
-        DB_PASSWORD = 'biddinggo'
-        REDIS_HOST = '127.0.0.1'
-        REDIS_PORT = '6379'
-        REDIS_USERNAME = ''
-        REDIS_PASSWORD = ''
-        KAKAO_REST_API_KEY = 'test'
-        KAKAO_CLIENT_SECRET = 'test'
-        GOOGLE_CLIENT_ID = 'test'
-        GOOGLE_CLIENT_SECRET = 'test'
-        TOSS_SECRET_KEY = 'test'
-        R2_ACCESS_KEY = 'test'
-        R2_SECRET_KEY = 'test'
-        R2_ACCOUNT_ID = 'test'
-        R2_BUCKET = 'test'
-        R2_PUBLIC_BASE_URL = 'https://example.com'
-        JWT_SECRET_KEY = 'test-jwt-secret-key-for-jenkins'
-        FRONTEND_REDIRECT_URI = 'http://localhost:5173/auth/callback'
-        OPENAI_API_KEY = 'test'
-        SUPABASE_URL = 'https://example.supabase.co'
-        SUPABASE_SERVICE_ROLE_KEY = 'test'
     }
 
     stages {
@@ -93,8 +66,15 @@ pipeline {
             steps {
                 container('gradle') {
                     dir('backend') {
-                        sh 'chmod +x ./gradlew'
-                        sh './gradlew clean test --no-daemon'
+                        withCredentials([file(credentialsId: 'backend-ci-env', variable: 'BACKEND_ENV_FILE')]) {
+                            sh '''
+                                set -a
+                                . "$BACKEND_ENV_FILE"
+                                set +a
+                                chmod +x ./gradlew
+                                ./gradlew clean test --no-daemon
+                            '''
+                        }
                     }
                 }
             }
@@ -104,10 +84,15 @@ pipeline {
             steps {
                 container('node') {
                     dir('frontend') {
-                        sh 'node -v'
-                        sh 'npm -v'
-                        sh 'npm ci'
-                        sh 'npm run build'
+                        withCredentials([file(credentialsId: 'frontend-ci-env', variable: 'FRONTEND_ENV_FILE')]) {
+                            sh '''
+                                cp "$FRONTEND_ENV_FILE" .env
+                                node -v
+                                npm -v
+                                npm ci
+                                npm run build
+                            '''
+                        }
                     }
                 }
             }

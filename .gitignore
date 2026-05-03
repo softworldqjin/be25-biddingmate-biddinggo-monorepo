@@ -16,3 +16,6 @@ frontend/env
 
 # local
 .gradle-user-home/
+
+# ci secret env files
+ci/*.env
