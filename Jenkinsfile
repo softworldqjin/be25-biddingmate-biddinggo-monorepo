@@ -68,11 +68,12 @@ pipeline {
                     dir('backend') {
                         withCredentials([file(credentialsId: 'backend-ci-env', variable: 'BACKEND_ENV_FILE')]) {
                             sh '''
-                                set -a
-                                . "$BACKEND_ENV_FILE"
-                                set +a
+                                set +x
+                                trap 'rm -f .env' EXIT
+                                cp "$BACKEND_ENV_FILE" .env
+                                chmod 600 .env
                                 chmod +x ./gradlew
-                                ./gradlew clean test --no-daemon
+                                SPRING_PROFILES_ACTIVE=local ./gradlew clean test --no-daemon
                             '''
                         }
                     }
@@ -86,7 +87,10 @@ pipeline {
                     dir('frontend') {
                         withCredentials([file(credentialsId: 'frontend-ci-env', variable: 'FRONTEND_ENV_FILE')]) {
                             sh '''
+                                set +x
+                                trap 'rm -f .env' EXIT
                                 cp "$FRONTEND_ENV_FILE" .env
+                                chmod 600 .env
                                 node -v
                                 npm -v
                                 npm ci
