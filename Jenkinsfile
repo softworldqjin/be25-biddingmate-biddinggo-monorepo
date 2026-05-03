@@ -26,6 +26,11 @@ pipeline {
                 volumeMounts:
                 - mountPath: "/var/run/docker.sock"
                   name: docker-socket
+              - name: curl
+                image: curlimages/curl:8.12.1
+                command:
+                - cat
+                tty: true
               - name: mariadb
                 image: mariadb:11.8.5
                 env:
@@ -143,22 +148,30 @@ pipeline {
                 credentialsId: DISCORD_WEBHOOK_CREDENTIALS_ID,
                 variable: 'DISCORD_WEBHOOK_URL'
             )]) {
-                script {
-                    try {
-                        timeout(time: 1, unit: 'MINUTES') {
-                            discordSend(
-                                description: """
-                                Title : ${currentBuild.displayName} success
-                                Result : ${currentBuild.currentResult}
-                                Duration : ${currentBuild.durationString}
-                                """.stripIndent().trim(),
-                                result: currentBuild.currentResult,
-                                title: "${env.JOB_NAME} : ${currentBuild.displayName}",
-                                webhookURL: DISCORD_WEBHOOK_URL
-                            )
+                container('curl') {
+                    script {
+                        try {
+                            timeout(time: 1, unit: 'MINUTES') {
+                                def payload = groovy.json.JsonOutput.toJson([
+                                    content: """Title : ${currentBuild.displayName} success
+Result : ${currentBuild.currentResult}
+Duration : ${currentBuild.durationString}""".stripIndent().trim()
+                                ])
+                                writeFile file: 'discord-payload.json', text: payload
+                                sh '''
+                                    set +x
+                                    curl --fail --silent --show-error \
+                                      -H "Content-Type: application/json" \
+                                      -X POST \
+                                      --data @discord-payload.json \
+                                      "$DISCORD_WEBHOOK_URL"
+                                '''
+                            }
+                        } catch (err) {
+                            echo "Discord notification failed: ${err}"
+                        } finally {
+                            sh 'rm -f discord-payload.json || true'
                         }
-                    } catch (err) {
-                        echo "Discord notification failed: ${err}"
                     }
                 }
             }
@@ -169,22 +182,30 @@ pipeline {
                 credentialsId: DISCORD_WEBHOOK_CREDENTIALS_ID,
                 variable: 'DISCORD_WEBHOOK_URL'
             )]) {
-                script {
-                    try {
-                        timeout(time: 1, unit: 'MINUTES') {
-                            discordSend(
-                                description: """
-                                Title : ${currentBuild.displayName} failure
-                                Result : ${currentBuild.currentResult}
-                                Duration : ${currentBuild.durationString}
-                                """.stripIndent().trim(),
-                                result: currentBuild.currentResult,
-                                title: "${env.JOB_NAME} : ${currentBuild.displayName}",
-                                webhookURL: DISCORD_WEBHOOK_URL
-                            )
+                container('curl') {
+                    script {
+                        try {
+                            timeout(time: 1, unit: 'MINUTES') {
+                                def payload = groovy.json.JsonOutput.toJson([
+                                    content: """Title : ${currentBuild.displayName} failure
+Result : ${currentBuild.currentResult}
+Duration : ${currentBuild.durationString}""".stripIndent().trim()
+                                ])
+                                writeFile file: 'discord-payload.json', text: payload
+                                sh '''
+                                    set +x
+                                    curl --fail --silent --show-error \
+                                      -H "Content-Type: application/json" \
+                                      -X POST \
+                                      --data @discord-payload.json \
+                                      "$DISCORD_WEBHOOK_URL"
+                                '''
+                            }
+                        } catch (err) {
+                            echo "Discord notification failed: ${err}"
+                        } finally {
+                            sh 'rm -f discord-payload.json || true'
                         }
-                    } catch (err) {
-                        echo "Discord notification failed: ${err}"
                     }
                 }
             }
