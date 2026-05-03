@@ -1,0 +1,18 @@
+# common
+.DS_Store
+.idea/
+.vscode/
+
+# backend
+backend/.gradle/
+backend/build/
+backend/.env
+
+# frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.env
+frontend/env
+
+# local
+.gradle-user-home/

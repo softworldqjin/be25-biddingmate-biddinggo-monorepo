@@ -1,0 +1,27 @@
+services:
+  mariadb:
+    image: mariadb:11.8.5
+    container_name: biddinggo-ci-mariadb
+    environment:
+      MARIADB_ROOT_PASSWORD: biddinggo
+      MARIADB_DATABASE: biddinggo
+      MARIADB_USER: biddinggo
+      MARIADB_PASSWORD: biddinggo
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mariadb-admin", "ping", "-h", "127.0.0.1", "-u", "root", "-pbiddinggo", "--silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7.4
+    container_name: biddinggo-ci-redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
