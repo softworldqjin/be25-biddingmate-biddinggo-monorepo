@@ -49,6 +49,7 @@ pipeline {
 
     environment {
         DOCKER_CREDENTIALS_ID = 'dockerhub-access'
+        DISCORD_WEBHOOK_CREDENTIALS_ID = 'discord-webhook'
         BACKEND_IMAGE_NAME = 'gyujin123/biddinggo-backend'
         FRONTEND_IMAGE_NAME = 'gyujin123/biddinggo-frontend'
     }
@@ -136,4 +137,41 @@ pipeline {
         }
     }
 
+    post {
+        success {
+            withCredentials([string(
+                credentialsId: DISCORD_WEBHOOK_CREDENTIALS_ID,
+                variable: 'DISCORD_WEBHOOK_URL'
+            )]) {
+                discordSend(
+                    description: """
+                    Build : ${currentBuild.displayName} succeeded
+                    Result : ${currentBuild.currentResult}
+                    Duration : ${currentBuild.durationString}
+                    """.stripIndent().trim(),
+                    result: currentBuild.currentResult,
+                    title: "${env.JOB_NAME} : ${currentBuild.displayName}",
+                    webhookURL: DISCORD_WEBHOOK_URL
+                )
+            }
+        }
+
+        failure {
+            withCredentials([string(
+                credentialsId: DISCORD_WEBHOOK_CREDENTIALS_ID,
+                variable: 'DISCORD_WEBHOOK_URL'
+            )]) {
+                discordSend(
+                    description: """
+                    Build : ${currentBuild.displayName} failed
+                    Result : ${currentBuild.currentResult}
+                    Duration : ${currentBuild.durationString}
+                    """.stripIndent().trim(),
+                    result: currentBuild.currentResult,
+                    title: "${env.JOB_NAME} : ${currentBuild.displayName}",
+                    webhookURL: DISCORD_WEBHOOK_URL
+                )
+            }
+        }
+    }
 }
