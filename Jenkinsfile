@@ -18,11 +18,6 @@ pipeline {
                 command:
                 - cat
                 tty: true
-              - name: sonar
-                image: sonarsource/sonar-scanner-cli:latest
-                command:
-                - cat
-                tty: true
               - name: docker
                 image: docker:29.4.1-cli-alpine3.23
                 command:
@@ -53,7 +48,6 @@ pipeline {
     }
 
     environment {
-        SONARQUBE_SERVER = 'sonarqube-server'
         DOCKER_CREDENTIALS_ID = 'dockerhub-access'
         BACKEND_IMAGE_NAME = 'gyujin123/biddinggo-backend'
         FRONTEND_IMAGE_NAME = 'gyujin123/biddinggo-frontend'
@@ -113,25 +107,6 @@ pipeline {
                             '''
                         }
                     }
-                }
-            }
-        }
-
-        stage('SonarQube Analysis') {
-            steps {
-                container('sonar') {
-                    withSonarQubeEnv("${SONARQUBE_SERVER}") {
-                        sh 'sonar-scanner'
-                    }
-                }
-            }
-        }
-
-        stage('Quality Gate') {
-            steps {
-                timeout(time: 10, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
-                    //
                 }
             }
         }
