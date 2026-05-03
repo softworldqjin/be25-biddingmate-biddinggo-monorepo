@@ -23,6 +23,14 @@ pipeline {
                 command:
                 - cat
                 tty: true
+              - name: docker
+                image: docker:29.4.1-cli-alpine3.23
+                command:
+                - cat
+                tty: true
+                volumeMounts:
+                - mountPath: "/var/run/docker.sock"
+                  name: docker-socket
               - name: mariadb
                 image: mariadb:11.8.5
                 env:
@@ -36,12 +44,19 @@ pipeline {
                   value: biddinggo
               - name: redis
                 image: redis:7.4
+              volumes:
+              - name: docker-socket
+                hostPath:
+                  path: "/var/run/docker.sock"
             '''
         }
     }
 
     environment {
         SONARQUBE_SERVER = 'sonarqube-server'
+        DOCKER_CREDENTIALS_ID = 'dockerhub-access'
+        BACKEND_IMAGE_NAME = 'gyujin123/biddinggo-backend'
+        FRONTEND_IMAGE_NAME = 'gyujin123/biddinggo-frontend'
     }
 
     stages {
@@ -117,6 +132,35 @@ pipeline {
                 timeout(time: 10, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
                     //
+                }
+            }
+        }
+
+        stage('Docker Image Build & Push') {
+            steps {
+                container('docker') {
+                    script {
+                        def imageVersion = "${env.BUILD_NUMBER}"
+
+                        withCredentials([usernamePassword(
+                            credentialsId: DOCKER_CREDENTIALS_ID,
+                            usernameVariable: 'DOCKER_USERNAME',
+                            passwordVariable: 'DOCKER_PASSWORD'
+                        )]) {
+                            sh '''
+                                set +x
+                                echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+                            '''
+                        }
+
+                        sh """
+                            docker build -t ${BACKEND_IMAGE_NAME}:${imageVersion} backend
+                            docker push ${BACKEND_IMAGE_NAME}:${imageVersion}
+                            docker build -t ${FRONTEND_IMAGE_NAME}:${imageVersion} frontend
+                            docker push ${FRONTEND_IMAGE_NAME}:${imageVersion}
+                            docker logout
+                        """
+                    }
                 }
             }
         }
