@@ -138,7 +138,7 @@ pipeline {
     }
 
     post {
-        always {
+        success {
             withCredentials([string(
                 credentialsId: DISCORD_WEBHOOK_CREDENTIALS_ID,
                 variable: 'DISCORD_WEBHOOK_URL'
@@ -146,17 +146,42 @@ pipeline {
                 script {
                     try {
                         timeout(time: 1, unit: 'MINUTES') {
-                            discordSend description: """
-                            Fullstack CI/CD Build Summary
+                            discordSend(
+                                description: """
+                                Title : ${currentBuild.displayName} success
+                                Result : ${currentBuild.currentResult}
+                                Duration : ${currentBuild.durationString}
+                                """.stripIndent().trim(),
+                                result: currentBuild.currentResult,
+                                title: "${env.JOB_NAME} : ${currentBuild.displayName}",
+                                webhookURL: DISCORD_WEBHOOK_URL
+                            )
+                        }
+                    } catch (err) {
+                        echo "Discord notification failed: ${err}"
+                    }
+                }
+            }
+        }
 
-                            Result: ${currentBuild.currentResult}
-                            Job: ${env.JOB_NAME}
-                            Build: ${currentBuild.displayName}
-                            Duration: ${currentBuild.durationString}
-                            """.stripIndent().trim(),
-                            result: currentBuild.currentResult,
-                            title: "${env.JOB_NAME} : ${currentBuild.displayName}",
-                            webhookURL: "${DISCORD_WEBHOOK_URL}"
+        failure {
+            withCredentials([string(
+                credentialsId: DISCORD_WEBHOOK_CREDENTIALS_ID,
+                variable: 'DISCORD_WEBHOOK_URL'
+            )]) {
+                script {
+                    try {
+                        timeout(time: 1, unit: 'MINUTES') {
+                            discordSend(
+                                description: """
+                                Title : ${currentBuild.displayName} failure
+                                Result : ${currentBuild.currentResult}
+                                Duration : ${currentBuild.durationString}
+                                """.stripIndent().trim(),
+                                result: currentBuild.currentResult,
+                                title: "${env.JOB_NAME} : ${currentBuild.displayName}",
+                                webhookURL: DISCORD_WEBHOOK_URL
+                            )
                         }
                     } catch (err) {
                         echo "Discord notification failed: ${err}"
