@@ -138,39 +138,30 @@ pipeline {
     }
 
     post {
-        success {
+        always {
             withCredentials([string(
                 credentialsId: DISCORD_WEBHOOK_CREDENTIALS_ID,
                 variable: 'DISCORD_WEBHOOK_URL'
             )]) {
-                discordSend(
-                    description: """
-                    Build : ${currentBuild.displayName} succeeded
-                    Result : ${currentBuild.currentResult}
-                    Duration : ${currentBuild.durationString}
-                    """.stripIndent().trim(),
-                    result: currentBuild.currentResult,
-                    title: "${env.JOB_NAME} : ${currentBuild.displayName}",
-                    webhookURL: DISCORD_WEBHOOK_URL
-                )
-            }
-        }
+                script {
+                    try {
+                        timeout(time: 1, unit: 'MINUTES') {
+                            discordSend description: """
+                            Fullstack CI/CD Build Summary
 
-        failure {
-            withCredentials([string(
-                credentialsId: DISCORD_WEBHOOK_CREDENTIALS_ID,
-                variable: 'DISCORD_WEBHOOK_URL'
-            )]) {
-                discordSend(
-                    description: """
-                    Build : ${currentBuild.displayName} failed
-                    Result : ${currentBuild.currentResult}
-                    Duration : ${currentBuild.durationString}
-                    """.stripIndent().trim(),
-                    result: currentBuild.currentResult,
-                    title: "${env.JOB_NAME} : ${currentBuild.displayName}",
-                    webhookURL: DISCORD_WEBHOOK_URL
-                )
+                            Result: ${currentBuild.currentResult}
+                            Job: ${env.JOB_NAME}
+                            Build: ${currentBuild.displayName}
+                            Duration: ${currentBuild.durationString}
+                            """.stripIndent().trim(),
+                            result: currentBuild.currentResult,
+                            title: "${env.JOB_NAME} : ${currentBuild.displayName}",
+                            webhookURL: "${DISCORD_WEBHOOK_URL}"
+                        }
+                    } catch (err) {
+                        echo "Discord notification failed: ${err}"
+                    }
+                }
             }
         }
     }
