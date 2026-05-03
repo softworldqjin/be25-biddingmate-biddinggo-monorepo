@@ -23,25 +23,25 @@ pipeline {
                 command:
                 - cat
                 tty: true
-              - name: docker
-                image: docker:29.4.1-cli-alpine3.23
-                command:
-                - cat
-                tty: true
-                volumeMounts:
-                - mountPath: "/var/run/docker.sock"
-                  name: docker-socket
-              volumes:
-              - name: docker-socket
-                hostPath:
-                  path: "/var/run/docker.sock"
+              - name: mariadb
+                image: mariadb:11.8.5
+                env:
+                - name: MARIADB_ROOT_PASSWORD
+                  value: biddinggo
+                - name: MARIADB_DATABASE
+                  value: biddinggo
+                - name: MARIADB_USER
+                  value: biddinggo
+                - name: MARIADB_PASSWORD
+                  value: biddinggo
+              - name: redis
+                image: redis:7.4
             '''
         }
     }
 
     environment {
         SONARQUBE_SERVER = 'sonarqube-server'
-        DOCKER_COMPOSE_FILE = 'docker-compose.ci.yml'
 
         SPRING_PROFILES_ACTIVE = 'local'
         LOCAL_PORT = '8080'
@@ -78,14 +78,13 @@ pipeline {
             }
         }
 
-        stage('Start CI Dependencies') {
+        stage('Wait For Dependencies') {
             steps {
-                container('docker') {
-                    sh 'docker version'
-                    sh 'docker compose version'
-                    sh 'docker compose -f $DOCKER_COMPOSE_FILE up -d'
-                    sh 'until [ "$(docker inspect -f {{.State.Health.Status}} biddinggo-ci-mariadb)" = "healthy" ]; do sleep 3; done'
-                    sh 'until [ "$(docker inspect -f {{.State.Health.Status}} biddinggo-ci-redis)" = "healthy" ]; do sleep 3; done'
+                container('mariadb') {
+                    sh 'until mariadb-admin ping -h 127.0.0.1 -u root -p"$MARIADB_ROOT_PASSWORD" --silent; do sleep 3; done'
+                }
+                container('redis') {
+                    sh 'until redis-cli -h 127.0.0.1 ping | grep PONG; do sleep 3; done'
                 }
             }
         }
@@ -133,11 +132,4 @@ pipeline {
         }
     }
 
-    post {
-        always {
-            container('docker') {
-                sh 'docker compose -f $DOCKER_COMPOSE_FILE down -v || true'
-            }
-        }
-    }
 }
