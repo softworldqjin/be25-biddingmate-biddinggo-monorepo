@@ -60,36 +60,6 @@ pipeline {
             }
         }
 
-        stage('Wait For Dependencies') {
-            steps {
-                container('mariadb') {
-                    sh 'until mariadb-admin ping -h 127.0.0.1 -u root -p"$MARIADB_ROOT_PASSWORD" --silent; do sleep 3; done'
-                }
-                container('redis') {
-                    sh 'until redis-cli -h 127.0.0.1 ping | grep PONG; do sleep 3; done'
-                }
-            }
-        }
-
-        stage('Backend Test') {
-            steps {
-                container('gradle') {
-                    dir('backend') {
-                        withCredentials([file(credentialsId: 'backend-ci-env', variable: 'BACKEND_ENV_FILE')]) {
-                            sh '''
-                                set +x
-                                trap 'rm -f .env' EXIT
-                                cp "$BACKEND_ENV_FILE" .env
-                                chmod 600 .env
-                                chmod +x ./gradlew
-                                SPRING_PROFILES_ACTIVE=local ./gradlew clean test --no-daemon
-                            '''
-                        }
-                    }
-                }
-            }
-        }
-
         stage('Frontend Build') {
             steps {
                 container('node') {
@@ -104,6 +74,31 @@ pipeline {
                                 npm -v
                                 npm ci
                                 npm run build
+                            '''
+                        }
+                    }
+                }
+            }
+        }
+
+        stage('Backend Build') {
+            steps {
+                container('mariadb') {
+                    sh 'until mariadb-admin ping -h 127.0.0.1 -u root -p"$MARIADB_ROOT_PASSWORD" --silent; do sleep 3; done'
+                }
+                container('redis') {
+                    sh 'until redis-cli -h 127.0.0.1 ping | grep PONG; do sleep 3; done'
+                }
+                container('gradle') {
+                    dir('backend') {
+                        withCredentials([file(credentialsId: 'backend-ci-env', variable: 'BACKEND_ENV_FILE')]) {
+                            sh '''
+                                set +x
+                                trap 'rm -f .env' EXIT
+                                cp "$BACKEND_ENV_FILE" .env
+                                chmod 600 .env
+                                chmod +x ./gradlew
+                                SPRING_PROFILES_ACTIVE=local ./gradlew clean build --no-daemon
                             '''
                         }
                     }
