@@ -76,10 +76,10 @@ pipeline {
                         returnStdout: true
                     ).trim()
 
-                    def changedFiles = changedOutput ? changedOutput.split("\\n") : []
+                    def changedFiles = changedOutput ? changedOutput.readLines().collect { it.trim() } : []
 
-                    env.BUILD_FRONT = changedFiles.any { it.startsWith('frontend/') } ? 'true' : 'false'
-                    env.BUILD_BACK = changedFiles.any { it.startsWith('backend/') } ? 'true' : 'false'
+                    env.BUILD_FRONT = changedFiles.find { it.startsWith('frontend/') } ? 'true' : 'false'
+                    env.BUILD_BACK = changedFiles.find { it.startsWith('backend/') } ? 'true' : 'false'
 
                     echo "Changed files:\n${changedOutput ?: '(none)'}"
                     echo "BUILD_FRONT=${env.BUILD_FRONT}"
