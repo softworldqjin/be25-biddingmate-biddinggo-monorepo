@@ -1,4 +1,5 @@
 spring:
+  # CI backend-only change detection test marker
   application:
     name: bidding-go
   config:
