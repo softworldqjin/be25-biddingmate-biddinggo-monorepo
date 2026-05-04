@@ -51,8 +51,6 @@ pipeline {
         DOCKER_CREDENTIALS_ID = 'dockerhub-access'
         BACKEND_IMAGE_NAME = 'gyujin123/biddinggo-backend'
         FRONTEND_IMAGE_NAME = 'gyujin123/biddinggo-frontend'
-        BUILD_FRONT = 'false'
-        BUILD_BACK = 'false'
     }
 
     stages {
@@ -62,40 +60,7 @@ pipeline {
             }
         }
 
-        stage('Detect Changes') {
-            steps {
-                script {
-                    def changedOutput = sh(
-                        script: '''
-                            if git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
-                                git diff --name-only HEAD~1 HEAD
-                            else
-                                git ls-files
-                            fi
-                        ''',
-                        returnStdout: true
-                    ).trim()
-
-                    def normalizedChanges = changedOutput ? "\n${changedOutput}\n" : '\n'
-
-                    env.BUILD_FRONT = normalizedChanges.contains('\nfrontend/') ? 'true' : 'false'
-                    env.BUILD_BACK = normalizedChanges.contains('\nbackend/') ? 'true' : 'false'
-
-                    echo "Changed files:\n${changedOutput ?: '(none)'}"
-                    echo "BUILD_FRONT=${env.BUILD_FRONT}"
-                    echo "BUILD_BACK=${env.BUILD_BACK}"
-
-                    if (env.BUILD_FRONT == 'false' && env.BUILD_BACK == 'false') {
-                        echo 'No frontend or backend changes detected. Build and push stages will be skipped.'
-                    }
-                }
-            }
-        }
-
         stage('Frontend Build') {
-            when {
-                expression { env.BUILD_FRONT == 'true' }
-            }
             steps {
                 container('node') {
                     dir('frontend') {
@@ -117,9 +82,6 @@ pipeline {
         }
 
         stage('Backend Build') {
-            when {
-                expression { env.BUILD_BACK == 'true' }
-            }
             steps {
                 container('mariadb') {
                     sh 'until mariadb-admin ping -h 127.0.0.1 -u root -p"$MARIADB_ROOT_PASSWORD" --silent; do sleep 3; done'
@@ -145,9 +107,6 @@ pipeline {
         }
 
         stage('Docker Image Build & Push') {
-            when {
-                expression { env.BUILD_FRONT == 'true' || env.BUILD_BACK == 'true' }
-            }
             steps {
                 container('docker') {
                     script {
@@ -165,19 +124,12 @@ pipeline {
                         }
 
                         try {
-                            if (env.BUILD_BACK == 'true') {
-                                sh """
-                                    docker build -t ${BACKEND_IMAGE_NAME}:${imageVersion} backend
-                                    docker push ${BACKEND_IMAGE_NAME}:${imageVersion}
-                                """
-                            }
-
-                            if (env.BUILD_FRONT == 'true') {
-                                sh """
-                                    docker build -t ${FRONTEND_IMAGE_NAME}:${imageVersion} frontend
-                                    docker push ${FRONTEND_IMAGE_NAME}:${imageVersion}
-                                """
-                            }
+                            sh """
+                                docker build -t ${BACKEND_IMAGE_NAME}:${imageVersion} backend
+                                docker push ${BACKEND_IMAGE_NAME}:${imageVersion}
+                                docker build -t ${FRONTEND_IMAGE_NAME}:${imageVersion} frontend
+                                docker push ${FRONTEND_IMAGE_NAME}:${imageVersion}
+                            """
                         } finally {
                             sh 'docker logout || true'
                         }
